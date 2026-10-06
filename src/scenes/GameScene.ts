@@ -52,6 +52,8 @@ export class GameScene extends Phaser.Scene {
   private keyEsc!: Phaser.Input.Keyboard.Key;
 
   private pointerTarget: { x: number; y: number } | null = null;
+  private touchStartPos: { x: number; y: number } | null = null;
+  private jetStartPos: { x: number; y: number } | null = null;
   private isPointerDown = false;
 
   constructor() {
@@ -90,10 +92,16 @@ export class GameScene extends Phaser.Scene {
     // Initialize WaveManager
     this.waveManager = new WaveManager(this.currentStageId);
     this.totalEnemiesInStage = this.waveManager.totalEnemies;
-    this.totalSurvivorsInStage = this.waveManager.totalSurvivors;
-
-    // Start background music
-    this.audio.startMusic('ambient');
+    // Start distinct background music per stage
+    if (!data?.pausedForMenu) {
+      const stageMusicMap: Record<number, 'stage1' | 'stage2' | 'stage3' | 'stage4'> = {
+        1: 'stage1',
+        2: 'stage2',
+        3: 'stage3',
+        4: 'stage4',
+      };
+      this.audio.startMusic(stageMusicMap[this.currentStageId] || 'stage1');
+    }
 
     // Set up Keyboard controls
     if (this.input.keyboard) {
@@ -110,18 +118,29 @@ export class GameScene extends Phaser.Scene {
       this.keyEsc = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.ESC);
     }
 
-    // Touch & Pointer Drag controls
+    // Touch & Pointer Drag controls (Relative touch with finger offset)
     this.input.on('pointerdown', (pointer: Phaser.Input.Pointer) => {
       this.isPointerDown = true;
-      this.pointerTarget = { x: pointer.x, y: pointer.y - 40 }; // Offset so finger does not cover plane
+      this.touchStartPos = { x: pointer.x, y: pointer.y };
+      this.jetStartPos = { x: this.player.x, y: this.player.y };
+      this.pointerTarget = { x: this.player.x, y: this.player.y };
     });
+
     this.input.on('pointermove', (pointer: Phaser.Input.Pointer) => {
-      if (this.isPointerDown) {
-        this.pointerTarget = { x: pointer.x, y: pointer.y - 40 };
+      if (this.isPointerDown && this.touchStartPos && this.jetStartPos) {
+        const deltaX = pointer.x - this.touchStartPos.x;
+        const deltaY = pointer.y - this.touchStartPos.y;
+        this.pointerTarget = {
+          x: this.jetStartPos.x + deltaX,
+          y: this.jetStartPos.y + deltaY - 60, // 60px offset so finger does not cover jet
+        };
       }
     });
+
     this.input.on('pointerup', () => {
       this.isPointerDown = false;
+      this.touchStartPos = null;
+      this.jetStartPos = null;
       this.pointerTarget = null;
     });
 
@@ -248,8 +267,6 @@ export class GameScene extends Phaser.Scene {
         text: 'Warning! High energy signature detected. Heavy Boss approaching!',
         portrait: 'boss',
       });
-    } else {
-      if (this.audio) this.audio.setMusicMode('combat');
     }
   }
 

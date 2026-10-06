@@ -1,17 +1,19 @@
 import { Howl, Howler } from 'howler';
 import { GameStore } from '../state/GameStore';
 
+export type MusicMode = 'menu' | 'stage1' | 'stage2' | 'stage3' | 'stage4' | 'boss';
+
 export class AudioManager {
   private static instance: AudioManager;
   private sounds: Map<string, Howl> = new Map();
   private store: GameStore;
 
-  // WebAudio dynamic music engine
+  // WebAudio dynamic multi-level music engine
   private audioCtx: AudioContext | null = null;
   private musicGain: GainNode | null = null;
   private isMusicPlaying = false;
-  private musicTempo = 124;
-  private musicMode: 'ambient' | 'combat' | 'boss' = 'ambient';
+  private musicTempo = 118;
+  private currentMode: MusicMode = 'menu';
   private timerId: number | null = null;
   private step = 0;
 
@@ -24,7 +26,7 @@ export class AudioManager {
     this.store.subscribe((state) => {
       Howler.mute(state.soundMuted);
       if (this.musicGain) {
-        this.musicGain.gain.value = state.musicMuted ? 0 : 0.25;
+        this.musicGain.gain.value = state.musicMuted ? 0 : 0.24;
       }
     });
   }
@@ -52,6 +54,8 @@ export class AudioManager {
       { key: 'boss', src: '/assets/audio/boss.ogg', volume: 0.7 },
       { key: 'victory', src: '/assets/audio/victory.ogg', volume: 0.7 },
       { key: 'defeat', src: '/assets/audio/defeat.ogg', volume: 0.7 },
+      { key: 'flyby', src: '/assets/audio/flyby.ogg', volume: 0.85 },
+      { key: 'logo_reveal', src: '/assets/audio/logo_reveal.ogg', volume: 0.8 },
     ];
 
     for (const item of sfxList) {
@@ -66,6 +70,7 @@ export class AudioManager {
 
   public play(key: string, rate = 1.0): void {
     if (this.store.getState().soundMuted) return;
+    this.unlockAudioContext();
     const sound = this.sounds.get(key);
     if (sound) {
       const id = sound.play();
@@ -80,46 +85,81 @@ export class AudioManager {
     Howler.mute(state.soundMuted);
   }
 
-  // Procedural Synthwave BGM Engine
-  public startMusic(mode: 'ambient' | 'combat' | 'boss' = 'ambient'): void {
-    this.musicMode = mode;
-    if (this.isMusicPlaying) return;
-
+  public unlockAudioContext(): void {
     try {
-      const AudioContextClass = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
+      const AudioContextClass =
+        window.AudioContext ||
+        (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
       if (!this.audioCtx) {
         this.audioCtx = new AudioContextClass();
       }
       if (this.audioCtx.state === 'suspended') {
         this.audioCtx.resume();
       }
+    } catch (e) {
+      console.warn('AudioContext unlock failed:', e);
+    }
+  }
 
-      this.musicGain = this.audioCtx.createGain();
-      this.musicGain.gain.value = this.store.getState().musicMuted ? 0 : 0.22;
-      this.musicGain.connect(this.audioCtx.destination);
+  // --- Multi-Level Dynamic BGM Engine ---
 
-      this.isMusicPlaying = true;
-      this.scheduleLoop();
+  public startMusic(mode: MusicMode = 'menu'): void {
+    this.currentMode = mode;
+    this.applyTempoForMode(mode);
+
+    try {
+      this.unlockAudioContext();
+      if (!this.audioCtx) return;
+
+      if (!this.musicGain) {
+        this.musicGain = this.audioCtx.createGain();
+        this.musicGain.gain.value = this.store.getState().musicMuted ? 0 : 0.24;
+        this.musicGain.connect(this.audioCtx.destination);
+      } else {
+        this.musicGain.gain.value = this.store.getState().musicMuted ? 0 : 0.24;
+      }
+
+      if (!this.isMusicPlaying) {
+        this.isMusicPlaying = true;
+        this.scheduleLoop();
+      }
     } catch (e) {
       console.warn('Web Audio BGM not started:', e);
     }
   }
 
-  public setMusicMode(mode: 'ambient' | 'combat' | 'boss'): void {
-    this.musicMode = mode;
-    if (mode === 'boss') {
-      this.musicTempo = 142;
-    } else if (mode === 'combat') {
-      this.musicTempo = 130;
-    } else {
-      this.musicTempo = 118;
+  public setMusicMode(mode: MusicMode): void {
+    this.currentMode = mode;
+    this.applyTempoForMode(mode);
+  }
+
+  private applyTempoForMode(mode: MusicMode): void {
+    switch (mode) {
+      case 'menu':
+        this.musicTempo = 110;
+        break;
+      case 'stage1':
+        this.musicTempo = 124;
+        break;
+      case 'stage2':
+        this.musicTempo = 132;
+        break;
+      case 'stage3':
+        this.musicTempo = 138;
+        break;
+      case 'stage4':
+        this.musicTempo = 144;
+        break;
+      case 'boss':
+        this.musicTempo = 152;
+        break;
     }
   }
 
   private scheduleLoop(): void {
     if (!this.isMusicPlaying || !this.audioCtx || !this.musicGain) return;
 
-    const interval = (60 / this.musicTempo) / 4 * 1000; // 16th note timing
+    const interval = (60 / this.musicTempo) / 4 * 1000; // 16th note step
     this.timerId = window.setTimeout(() => {
       this.playSynthStep(this.step);
       this.step = (this.step + 1) % 64;
@@ -132,37 +172,97 @@ export class AudioManager {
     const ctx = this.audioCtx;
     const now = ctx.currentTime;
 
-    // Bass notes (A minor / D minor progression)
-    const bassScale = [110, 110, 130.81, 146.83, 110, 110, 98, 123.47];
+    // Distinct Bass & Harmony scales per mode
+    let bassScale: number[];
+    let leadScale: number[];
+    let bassWave: OscillatorType = 'triangle';
+    let leadWave: OscillatorType = 'sawtooth';
+
+    switch (this.currentMode) {
+      case 'menu':
+        // Chill Synthwave (Fmaj7 - G - Am)
+        bassScale = [87.31, 87.31, 98.0, 98.0, 110.0, 110.0, 130.81, 110.0];
+        leadScale = [349.23, 440.0, 523.25, 659.25, 523.25, 440.0, 392.0, 329.63];
+        bassWave = 'sine';
+        leadWave = 'triangle';
+        break;
+
+      case 'stage1':
+        // Archipelago Incursion: Heroic Military Arcade (D minor / F / C / G)
+        bassScale = [146.83, 146.83, 174.61, 174.61, 130.81, 130.81, 98.0, 110.0];
+        leadScale = [293.66, 349.23, 440.0, 523.25, 587.33, 523.25, 440.0, 349.23];
+        bassWave = 'triangle';
+        leadWave = 'sawtooth';
+        break;
+
+      case 'stage2':
+        // Fortress Stronghold: Dark Industrial March (B minor / G / Em / F#)
+        bassScale = [123.47, 123.47, 98.0, 98.0, 82.41, 82.41, 92.5, 92.5];
+        leadScale = [493.88, 587.33, 739.99, 587.33, 493.88, 392.0, 369.99, 440.0];
+        bassWave = 'sawtooth';
+        leadWave = 'sawtooth';
+        break;
+
+      case 'stage3':
+        // Volcanic Caldera: High-Speed Adrenaline Acid Techno (E minor / C / D)
+        bassScale = [82.41, 82.41, 82.41, 130.81, 130.81, 146.83, 146.83, 82.41];
+        leadScale = [659.25, 523.25, 587.33, 659.25, 783.99, 880.0, 783.99, 659.25];
+        bassWave = 'sawtooth';
+        leadWave = 'square';
+        break;
+
+      case 'stage4':
+        // Iron Citadel: Cyber Epic (C minor / Ab / Bb / G)
+        bassScale = [130.81, 130.81, 103.83, 103.83, 116.54, 116.54, 98.0, 98.0];
+        leadScale = [523.25, 622.25, 783.99, 932.33, 1046.5, 783.99, 622.25, 523.25];
+        bassWave = 'sawtooth';
+        leadWave = 'sawtooth';
+        break;
+
+      case 'boss':
+      default:
+        // Heavy Boss Battle: Intense Octave Bass & Siren Pulses
+        bassScale = [110.0, 220.0, 110.0, 220.0, 123.47, 246.94, 130.81, 261.63];
+        leadScale = [880.0, 932.33, 880.0, 783.99, 880.0, 1046.5, 932.33, 880.0];
+        bassWave = 'sawtooth';
+        leadWave = 'sawtooth';
+        break;
+    }
+
     const bassNote = bassScale[Math.floor(step / 8) % bassScale.length];
 
-    if (step % 2 === 0) {
-      // Synth Bass
+    // 1. Synth Bassline
+    if (step % (this.currentMode === 'menu' ? 4 : 2) === 0) {
       const osc = ctx.createOscillator();
       const gain = ctx.createGain();
-      osc.type = this.musicMode === 'boss' ? 'sawtooth' : 'triangle';
+      osc.type = bassWave;
       osc.frequency.setValueAtTime(bassNote / 2, now);
 
-      gain.gain.setValueAtTime(0.3, now);
-      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.18);
+      gain.gain.setValueAtTime(this.currentMode === 'menu' ? 0.2 : 0.35, now);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.17);
 
       osc.connect(gain);
       gain.connect(this.musicGain);
 
       osc.start(now);
-      osc.stop(now + 0.2);
+      osc.stop(now + 0.19);
     }
 
-    // Drum beats (Kick + Snare)
-    if (this.musicMode !== 'ambient') {
-      // Kick on 0, 4, 8, 12...
-      if (step % 4 === 0) {
+    // 2. Percussion
+    if (this.currentMode === 'menu') {
+      // Gentle hi-hat on every 2nd step
+      if (step % 2 === 0) {
+        this.playNoisePercussion(ctx, now, 0.05, 3000, 0.08);
+      }
+    } else {
+      // Kick on quarter beats (0, 4, 8, 12...)
+      if (step % 4 === 0 || (this.currentMode === 'boss' && step % 2 === 0)) {
         const kickOsc = ctx.createOscillator();
         const kickGain = ctx.createGain();
-        kickOsc.frequency.setValueAtTime(140, now);
-        kickOsc.frequency.exponentialRampToValueAtTime(35, now + 0.08);
+        kickOsc.frequency.setValueAtTime(150, now);
+        kickOsc.frequency.exponentialRampToValueAtTime(30, now + 0.08);
 
-        kickGain.gain.setValueAtTime(0.5, now);
+        kickGain.gain.setValueAtTime(0.55, now);
         kickGain.gain.exponentialRampToValueAtTime(0.001, now + 0.1);
 
         kickOsc.connect(kickGain);
@@ -172,53 +272,73 @@ export class AudioManager {
         kickOsc.stop(now + 0.12);
       }
 
-      // Snare / Clap on 4, 12
+      // Snare on 4, 12
       if (step % 8 === 4) {
-        // White noise snare
-        const bufferSize = ctx.sampleRate * 0.08;
-        const buffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
-        const data = buffer.getChannelData(0);
-        for (let i = 0; i < bufferSize; i++) {
-          data[i] = Math.random() * 2 - 1;
-        }
-        const noise = ctx.createBufferSource();
-        noise.buffer = buffer;
+        this.playNoisePercussion(ctx, now, 0.08, 1200, 0.28);
+      }
 
-        const filter = ctx.createBiquadFilter();
-        filter.type = 'highpass';
-        filter.frequency.value = 1000;
-
-        const snareGain = ctx.createGain();
-        snareGain.gain.setValueAtTime(0.25, now);
-        snareGain.gain.exponentialRampToValueAtTime(0.001, now + 0.08);
-
-        noise.connect(filter);
-        filter.connect(snareGain);
-        snareGain.connect(this.musicGain);
-
-        noise.start(now);
+      // Hi-hat groove on off-beats
+      if (step % 2 === 1) {
+        this.playNoisePercussion(ctx, now, 0.03, 5000, 0.09);
       }
     }
 
-    // Lead Arpeggio
-    const arpNotes = [440, 523.25, 659.25, 783.99, 880, 659.25, 523.25, 440];
-    const arpNote = arpNotes[step % arpNotes.length];
+    // 3. Lead Arpeggios / Melody
+    const arpNote = leadScale[step % leadScale.length];
+    const shouldPlayLead =
+      this.currentMode === 'boss'
+        ? step % 2 === 0
+        : this.currentMode === 'menu'
+        ? step % 8 === 0 || step % 8 === 3 || step % 8 === 6
+        : step % 4 === 0 || (step % 8 === 2 && this.currentMode === 'stage3');
 
-    if (step % (this.musicMode === 'boss' ? 2 : 4) === 0) {
+    if (shouldPlayLead) {
       const arpOsc = ctx.createOscillator();
       const arpGain = ctx.createGain();
-      arpOsc.type = 'sawtooth';
-      arpOsc.frequency.setValueAtTime(arpNote * (this.musicMode === 'boss' ? 1.5 : 1), now);
+      arpOsc.type = leadWave;
+      arpOsc.frequency.setValueAtTime(arpNote, now);
 
-      arpGain.gain.setValueAtTime(0.12, now);
+      arpGain.gain.setValueAtTime(this.currentMode === 'menu' ? 0.08 : 0.15, now);
       arpGain.gain.exponentialRampToValueAtTime(0.001, now + 0.14);
 
       arpOsc.connect(arpGain);
       arpGain.connect(this.musicGain);
 
       arpOsc.start(now);
-      arpOsc.stop(now + 0.15);
+      arpOsc.stop(now + 0.16);
     }
+  }
+
+  private playNoisePercussion(
+    ctx: AudioContext,
+    now: number,
+    duration: number,
+    highpassFreq: number,
+    volume: number
+  ): void {
+    if (!this.musicGain) return;
+    const bufferSize = Math.floor(ctx.sampleRate * duration);
+    const buffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
+    const data = buffer.getChannelData(0);
+    for (let i = 0; i < bufferSize; i++) {
+      data[i] = Math.random() * 2 - 1;
+    }
+    const noise = ctx.createBufferSource();
+    noise.buffer = buffer;
+
+    const filter = ctx.createBiquadFilter();
+    filter.type = 'highpass';
+    filter.frequency.value = highpassFreq;
+
+    const gain = ctx.createGain();
+    gain.gain.setValueAtTime(volume, now);
+    gain.gain.exponentialRampToValueAtTime(0.001, now + duration);
+
+    noise.connect(filter);
+    filter.connect(gain);
+    gain.connect(this.musicGain);
+
+    noise.start(now);
   }
 
   public stopMusic(): void {

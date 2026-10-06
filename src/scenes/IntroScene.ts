@@ -39,10 +39,13 @@ export class IntroScene extends Phaser.Scene {
     const flame = this.add.sprite(width / 2, height + 130, 'flame').setOrigin(0.5, 0);
     flame.setScale(1.3, 2.5);
 
-    // Audio: Jet flyby whoosh + boom
-    this.audio.play('bomb', 1.4);
-    this.time.delayedCall(450, () => {
-      this.audio.play('rescue', 1.1);
+    // Audio: Jet supersonic flyby whoosh + sonic boom + logo reveal chime
+    this.audio.play('flyby', 1.0);
+    this.time.delayedCall(260, () => {
+      this.audio.play('bomb', 1.2);
+    });
+    this.time.delayedCall(420, () => {
+      this.audio.play('logo_reveal', 1.0);
     });
 
     // Jet flyby tween (bottom to off top)
@@ -127,6 +130,7 @@ export class IntroScene extends Phaser.Scene {
     const glint = this.add.circle(width / 2 - 120, height / 2 - 20, 4, 0xffffff, 0.9);
     glint.setAlpha(0);
     this.time.delayedCall(850, () => {
+      this.audio.play('star', 1.5);
       glint.setAlpha(1);
       this.tweens.add({
         targets: glint,

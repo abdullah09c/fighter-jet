@@ -3,6 +3,7 @@ import { BootScene } from './scenes/BootScene';
 import { IntroScene } from './scenes/IntroScene';
 import { GameScene } from './scenes/GameScene';
 import { UIManager, HUDData, SummaryData } from './ui/UIManager';
+import { AudioManager } from './audio/AudioManager';
 
 // Viewport settings for vertical top-down shmup
 const GAME_WIDTH = 540;
@@ -45,7 +46,7 @@ function syncOverlayToCanvas(game: Phaser.Game): void {
   }
 }
 
-window.addEventListener('DOMContentLoaded', () => {
+function launchGame(): void {
   const game = new Phaser.Game(config);
   const uiManager = new UIManager('ui-overlay');
 
@@ -103,10 +104,11 @@ window.addEventListener('DOMContentLoaded', () => {
     },
   });
 
-  // Listen to Intro Scene finished
+  // Listen to Intro Scene finished -> Show Main Menu & start Menu BGM
   game.events.on('ui:intro-finished', () => {
     uiManager.renderMainMenu();
     doSync();
+    AudioManager.getInstance().startMusic('menu');
   });
 
   // Listen to Phaser scene events
@@ -129,4 +131,37 @@ window.addEventListener('DOMContentLoaded', () => {
   game.events.on('ui:mission-summary', (data: SummaryData) => {
     uiManager.renderMissionSummary(data);
   });
+}
+
+window.addEventListener('DOMContentLoaded', () => {
+  const startOverlay = document.getElementById('start-overlay');
+  const startBtn = document.getElementById('btn-start-game');
+  let started = false;
+
+  const handleStart = () => {
+    if (started) return;
+    started = true;
+
+    // Unlock Web Audio context immediately on click gesture
+    AudioManager.getInstance().unlockAudioContext();
+
+    // Smoothly hide start overlay
+    if (startOverlay) {
+      startOverlay.style.opacity = '0';
+      setTimeout(() => startOverlay.remove(), 300);
+    }
+
+    launchGame();
+  };
+
+  if (startBtn) {
+    startBtn.addEventListener('click', handleStart);
+    window.addEventListener('keydown', (e) => {
+      if ((e.code === 'Space' || e.code === 'Enter') && !started) {
+        handleStart();
+      }
+    });
+  } else {
+    launchGame();
+  }
 });

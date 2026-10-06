@@ -77,6 +77,7 @@ export class UIManager {
 
   public renderMainMenu(): void {
     this.activeScreen = 'menu';
+    this.audio.startMusic('menu');
     const state = this.store.getState();
     const highestStage = this.store.getHighestUnlockedStage();
     const currentStageName = state.stages.find((s) => s.id === highestStage)?.name || 'Mission Active';
@@ -726,43 +727,52 @@ export class UIManager {
       <!-- Dialogue & Toast Slot -->
       <div id="dialogue-slot" class="w-full my-auto flex flex-col items-center justify-center gap-2 pointer-events-none px-2"></div>
 
-      <!-- Ability Hotbar (Bottom) -->
-      <div class="pointer-events-auto w-full flex justify-center items-center gap-2 px-1 mb-1 select-none">
-        <button id="btn-ability-laser" class="flex-1 bg-skyforce-panel/95 tech-border hover:bg-cyan-500/20 active:scale-95 text-white rounded-lg py-2 px-1 flex flex-col items-center transition-all duration-150 shadow-md">
-          <span class="text-[10px] font-bold text-cyan-400 leading-tight">[1] LASER</span>
-          <span id="hud-laser-count" class="text-xs font-mono font-bold text-white mt-0.5">2</span>
+      <!-- Ability Hotbar (Large Mobile Thumb Targets) -->
+      <div class="pointer-events-auto w-full flex justify-center items-center gap-2 px-1 mb-2 select-none">
+        <button id="btn-ability-laser" class="flex-1 min-h-[56px] sm:min-h-[62px] bg-skyforce-panel/95 border-2 border-cyan-400/60 hover:border-cyan-400 active:scale-95 active:bg-cyan-500/25 text-white rounded-xl py-2 px-1 flex flex-col items-center justify-center transition-all duration-100 shadow-md shadow-cyan-500/20 cursor-pointer">
+          <div class="flex items-center gap-1">
+            <span class="text-xs">⚡</span>
+            <span class="text-[11px] sm:text-xs font-bold text-cyan-300 font-heading tracking-wider">LASER</span>
+          </div>
+          <span id="hud-laser-count" class="text-[11px] font-mono font-bold text-white mt-0.5 bg-cyan-900/40 px-2 rounded-full border border-cyan-500/30">2</span>
         </button>
-        <button id="btn-ability-shield" class="flex-1 bg-skyforce-panel/95 tech-border hover:bg-emerald-500/20 active:scale-95 text-white rounded-lg py-2 px-1 flex flex-col items-center transition-all duration-150 shadow-md">
-          <span class="text-[10px] font-bold text-emerald-400 leading-tight">[2] SHIELD</span>
-          <span id="hud-shield-count" class="text-xs font-mono font-bold text-white mt-0.5">2</span>
+
+        <button id="btn-ability-shield" class="flex-1 min-h-[56px] sm:min-h-[62px] bg-skyforce-panel/95 border-2 border-emerald-400/60 hover:border-emerald-400 active:scale-95 active:bg-emerald-500/25 text-white rounded-xl py-2 px-1 flex flex-col items-center justify-center transition-all duration-100 shadow-md shadow-emerald-500/20 cursor-pointer">
+          <div class="flex items-center gap-1">
+            <span class="text-xs">🛡️</span>
+            <span class="text-[11px] sm:text-xs font-bold text-emerald-300 font-heading tracking-wider">SHIELD</span>
+          </div>
+          <span id="hud-shield-count" class="text-[11px] font-mono font-bold text-white mt-0.5 bg-emerald-900/40 px-2 rounded-full border border-emerald-500/30">2</span>
         </button>
-        <button id="btn-ability-bomb" class="flex-1 bg-skyforce-panel/95 tech-border hover:bg-rose-500/20 active:scale-95 text-white rounded-lg py-2 px-1 flex flex-col items-center transition-all duration-150 shadow-md">
-          <span class="text-[10px] font-bold text-rose-400 leading-tight">[3] BOMB</span>
-          <span id="hud-bomb-count" class="text-xs font-mono font-bold text-white mt-0.5">1</span>
+
+        <button id="btn-ability-bomb" class="flex-1 min-h-[56px] sm:min-h-[62px] bg-skyforce-panel/95 border-2 border-rose-400/60 hover:border-rose-400 active:scale-95 active:bg-rose-500/25 text-white rounded-xl py-2 px-1 flex flex-col items-center justify-center transition-all duration-100 shadow-md shadow-rose-500/20 cursor-pointer">
+          <div class="flex items-center gap-1">
+            <span class="text-xs">💣</span>
+            <span class="text-[11px] sm:text-xs font-bold text-rose-300 font-heading tracking-wider">BOMB</span>
+          </div>
+          <span id="hud-bomb-count" class="text-[11px] font-mono font-bold text-white mt-0.5 bg-rose-900/40 px-2 rounded-full border border-rose-500/30">1</span>
         </button>
       </div>
     `;
 
-    // Bind Hotbar clicks
-    this.container.querySelector('#btn-ability-laser')?.addEventListener('click', () => {
-      this.onTriggerAbilityCallback?.('laser');
-    });
-    this.container.querySelector('#btn-ability-shield')?.addEventListener('click', () => {
-      this.onTriggerAbilityCallback?.('shield');
-    });
-    this.container.querySelector('#btn-ability-bomb')?.addEventListener('click', () => {
-      this.onTriggerAbilityCallback?.('bomb');
-    });
+    // Touch-safe event bindings (stops event bleeding to canvas)
+    const bindTouchAction = (selector: string, callback?: () => void) => {
+      const el = this.container.querySelector(selector);
+      if (!el) return;
+      el.addEventListener('pointerdown', (e) => {
+        e.stopPropagation();
+      });
+      el.addEventListener('click', (e) => {
+        e.stopPropagation();
+        callback?.();
+      });
+    };
 
-    // Bind Pause click
-    this.container.querySelector('#btn-pause')?.addEventListener('click', () => {
-      this.onTogglePauseCallback?.();
-    });
-
-    // Bind Autofire toggle button
-    this.container.querySelector('#btn-toggle-autofire')?.addEventListener('click', () => {
-      this.onToggleAutoFireCallback?.();
-    });
+    bindTouchAction('#btn-ability-laser', () => this.onTriggerAbilityCallback?.('laser'));
+    bindTouchAction('#btn-ability-shield', () => this.onTriggerAbilityCallback?.('shield'));
+    bindTouchAction('#btn-ability-bomb', () => this.onTriggerAbilityCallback?.('bomb'));
+    bindTouchAction('#btn-pause', () => this.onTogglePauseCallback?.());
+    bindTouchAction('#btn-toggle-autofire', () => this.onToggleAutoFireCallback?.());
   }
 
   public updateHUD(data: HUDData): void {

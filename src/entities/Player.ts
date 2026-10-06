@@ -126,20 +126,20 @@ export class Player extends Phaser.GameObjects.Container {
     if (keys.up) moveY -= 1;
     if (keys.down) moveY += 1;
 
-    // Pointer touch / mouse dragging
-    if (targetPos) {
-      const dx = targetPos.x - this.x;
-      const dy = targetPos.y - this.y;
-      const dist = Math.sqrt(dx * dx + dy * dy);
-      if (dist > 8) {
-        moveX = dx / dist;
-        moveY = dy / dist;
-      }
-    }
+    let bankFactor = 0;
 
-    // Apply movement
-    this.x += moveX * this.speed * dt;
-    this.y += moveY * this.speed * dt;
+    // Pointer touch / mouse dragging (relative follow)
+    if (targetPos) {
+      const prevX = this.x;
+      this.x = Phaser.Math.Linear(this.x, targetPos.x, 0.45);
+      this.y = Phaser.Math.Linear(this.y, targetPos.y, 0.45);
+      bankFactor = (this.x - prevX) / 3;
+    } else {
+      // Keyboard input
+      this.x += moveX * this.speed * dt;
+      this.y += moveY * this.speed * dt;
+      bankFactor = moveX;
+    }
 
     // Viewport clamping
     const pad = 35;
@@ -147,8 +147,8 @@ export class Player extends Phaser.GameObjects.Container {
     this.y = Phaser.Math.Clamp(this.y, pad, viewH - pad);
 
     // Roll banking animation
-    const targetAngle = moveX * 9;
-    this.shipSprite.angle = Phaser.Math.Linear(this.shipSprite.angle, targetAngle, 0.15);
+    const targetAngle = Phaser.Math.Clamp(bankFactor * 10, -18, 18);
+    this.shipSprite.angle = Phaser.Math.Linear(this.shipSprite.angle, targetAngle, 0.2);
 
     // Shield timer
     if (this.hasShield) {
