@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64">
+  <!-- Life Raft / Ground Pad -->
+  <circle cx="32" cy="32" r="28" fill="#ffaa00" stroke="#d48800" stroke-width="4" opacity="0.8"/>
+  <circle cx="32" cy="32" r="20" fill="#222" opacity="0.6"/>
+  <!-- Beacon Flash Ring -->
+  <circle cx="32" cy="32" r="24" fill="none" stroke="#00ffff" stroke-width="2" stroke-dasharray="4 4" opacity="0.9"/>
+  <!-- Pilot in Flight Suit -->
+  <circle cx="32" cy="24" r="8" fill="#ffffff" stroke="#333" stroke-width="2"/> <!-- Helmet -->
+  <path d="M 28 24 Q 32 28 36 24" stroke="#00d2ff" stroke-width="3" fill="none"/> <!-- Visor -->
+  <rect x="26" y="32" width="12" height="14" rx="3" fill="#ff5500"/> <!-- Suit Torso -->
+  <!-- Waving Arms -->
+  <line x1="26" y1="34" x2="16" y2="24" stroke="#ff5500" stroke-width="4" stroke-linecap="round"/>
+  <line x1="38" y1="34" x2="48" y2="24" stroke="#ff5500" stroke-width="4" stroke-linecap="round"/>
+  <circle x="15" y="23" r="3" fill="#ffffff"/>
+  <circle x="49" y="23" r="3" fill="#ffffff"/>
+  <!-- SOS Antenna / Signal Light -->
+  <line x1="32" y1="16" x2="32" y2="8" stroke="#ff0044" stroke-width="2"/>
+  <circle cx="32" cy="8" r="3" fill="#ff0044"/>
+</svg>

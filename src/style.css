@@ -1,0 +1,37 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  body {
+    font-family: 'Rajdhani', sans-serif;
+  }
+  h1, h2, h3, .font-heading {
+    font-family: 'Orbitron', sans-serif;
+  }
+}
+
+/* Custom glow and sci-fi button styles */
+.tech-border {
+  border: 1px solid rgba(0, 210, 255, 0.4);
+  box-shadow: 0 0 15px rgba(0, 210, 255, 0.15), inset 0 0 10px rgba(0, 210, 255, 0.1);
+}
+
+.gold-glow {
+  text-shadow: 0 0 8px rgba(255, 210, 0, 0.7);
+}
+
+.cyan-glow {
+  text-shadow: 0 0 8px rgba(0, 210, 255, 0.7);
+}
+
+.danger-glow {
+  text-shadow: 0 0 8px rgba(255, 51, 102, 0.7);
+}
+
+/* Scanline and vignette overlay for retro arcade feel */
+.arcade-crt {
+  background: radial-gradient(circle at center, transparent 60%, rgba(0, 0, 0, 0.7) 100%),
+              repeating-linear-gradient(0deg, rgba(0,0,0,0.06) 0px, rgba(0,0,0,0.06) 1px, transparent 1px, transparent 2px);
+  pointer-events: none;
+}
