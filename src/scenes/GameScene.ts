@@ -205,7 +205,8 @@ export class GameScene extends Phaser.Scene {
     this.waveManager.update(
       dt,
       (type, xRatio) => this.spawnEnemy(type, xRatio),
-      (xRatio) => this.spawnSurvivor(xRatio)
+      (xRatio) => this.spawnSurvivor(xRatio),
+      (warning) => this.triggerSurpriseWarning(warning)
     );
     this.updateEnemies(dt);
 
@@ -249,22 +250,99 @@ export class GameScene extends Phaser.Scene {
     this.audio.play('powerup', this.autoFire ? 1.2 : 0.85);
   }
 
+  // --- Surprise Attack Warning Telegraphs ---
+
+  private triggerSurpriseWarning(warning: 'rear' | 'flank_left' | 'flank_right' | 'miniboss'): void {
+    this.audio.play('warning');
+    const { width, height } = this.cameras.main;
+
+    let bannerText = '';
+    if (warning === 'rear') {
+      bannerText = '⚠️ AMBUSH: REAR INTERCEPTORS DETECTED! ⚠️';
+      const alertG = this.add.graphics();
+      alertG.fillStyle(0xff1122, 0.35);
+      alertG.fillRect(0, height - 70, width, 70);
+      this.tweens.add({
+        targets: alertG,
+        alpha: 0,
+        duration: 600,
+        repeat: 2,
+        yoyo: true,
+        onComplete: () => alertG.destroy(),
+      });
+    } else if (warning === 'flank_left') {
+      bannerText = '⚠️ WARNING: ENEMY FLANK SQUADRON (WEST)! ⚠️';
+      const alertG = this.add.graphics();
+      alertG.fillStyle(0x00d2ff, 0.35);
+      alertG.fillRect(0, 0, 50, height);
+      this.tweens.add({
+        targets: alertG,
+        alpha: 0,
+        duration: 600,
+        repeat: 2,
+        yoyo: true,
+        onComplete: () => alertG.destroy(),
+      });
+    } else if (warning === 'flank_right') {
+      bannerText = '⚠️ WARNING: ENEMY FLANK SQUADRON (EAST)! ⚠️';
+      const alertG = this.add.graphics();
+      alertG.fillStyle(0x00d2ff, 0.35);
+      alertG.fillRect(width - 50, 0, 50, height);
+      this.tweens.add({
+        targets: alertG,
+        alpha: 0,
+        duration: 600,
+        repeat: 2,
+        yoyo: true,
+        onComplete: () => alertG.destroy(),
+      });
+    } else if (warning === 'miniboss') {
+      bannerText = '⚠️ ALERT: ELITE BATTLECRUISER APPROACHING! ⚠️';
+      this.cameras.main.shake(450, 0.015);
+    }
+
+    this.game.events.emit('ui:toast', bannerText);
+  }
+
   // --- Spawning Handlers ---
 
   private spawnEnemy(type: EnemyType, xRatio: number): void {
-    const viewW = this.cameras.main.width;
-    const x = viewW * xRatio;
-    const enemy = new Enemy(this, x, -60, type);
+    const { width: viewW, height: viewH } = this.cameras.main;
+    let spawnX = viewW * xRatio;
+    let spawnY = -60;
+
+    if (type === 'rear_interceptor') {
+      spawnY = viewH + 50;
+    } else if (type === 'flanker_left') {
+      spawnX = -45;
+      spawnY = viewH * (xRatio * 0.6 + 0.15);
+    } else if (type === 'flanker_right') {
+      spawnX = viewW + 45;
+      spawnY = viewH * (xRatio * 0.6 + 0.15);
+    }
+
+    const enemy = new Enemy(this, spawnX, spawnY, type);
     this.enemies.push(enemy);
 
     if (enemy.isBoss) {
       this.audio.play('boss');
       this.audio.setMusicMode('boss');
-      this.cameras.main.shake(500, 0.02);
+      this.cameras.main.shake(700, 0.025);
+
+      let bossDialogue = 'Warning! High energy signature detected. Heavy Boss approaching!';
+      if (type === 'boss1') {
+        bossDialogue = 'Heavy Gunship inbound! Watch those Gatling cannons & missile salvos!';
+      } else if (type === 'boss2') {
+        bossDialogue = 'Fortress Tank sighted! Beware of deflective shield & cluster artillery!';
+      } else if (type === 'boss3') {
+        bossDialogue = 'Stealth Dreadnought detected! Active optical cloaking & seeker plasma!';
+      } else if (type === 'boss4') {
+        bossDialogue = 'CRITICAL ALERT! Mothership Citadel engaged! Destroy wing turrets and evade orbital laser strikes!';
+      }
 
       this.game.events.emit('ui:dialogue', {
         speaker: 'WARSHIP COMMAND',
-        text: 'Warning! High energy signature detected. Heavy Boss approaching!',
+        text: bossDialogue,
         portrait: 'boss',
       });
     }
@@ -292,7 +370,7 @@ export class GameScene extends Phaser.Scene {
         if (enemy.isDead) continue;
         if (this.checkOverlap(l.sprite, enemy, 35)) {
           hit = true;
-          const killed = enemy.takeDamage(l.damage);
+          const killed = enemy.takeDamage(l.damage, l.sprite.x, l.sprite.y);
           if (killed) {
             this.handleEnemyKilled(enemy);
           }
@@ -346,7 +424,7 @@ export class GameScene extends Phaser.Scene {
         if (enemy.isDead) continue;
         if (this.checkOverlap(m.sprite, enemy, 40)) {
           hit = true;
-          const killed = enemy.takeDamage(m.damage);
+          const killed = enemy.takeDamage(m.damage, m.sprite.x, m.sprite.y);
           if (killed) {
             this.handleEnemyKilled(enemy);
           }
@@ -367,6 +445,40 @@ export class GameScene extends Phaser.Scene {
     const { width, height } = this.cameras.main;
     for (let i = this.enemyBullets.length - 1; i >= 0; i--) {
       const b = this.enemyBullets[i];
+
+      // Homing seeker logic
+      if (b.isHoming && b.homingTimer !== undefined && b.homingTimer > 0) {
+        b.homingTimer -= dt;
+        const targetAngle = Phaser.Math.Angle.Between(b.sprite.x, b.sprite.y, this.player.x, this.player.y);
+        const currentAngle = Math.atan2(b.vy, b.vx);
+        const newAngle = Phaser.Math.Angle.RotateTo(currentAngle, targetAngle, 2.5 * dt);
+        const speed = Math.sqrt(b.vx * b.vx + b.vy * b.vy) || 220;
+        b.vx = Math.cos(newAngle) * speed;
+        b.vy = Math.sin(newAngle) * speed;
+        b.sprite.rotation = newAngle + Math.PI / 2;
+      }
+
+      // Mortar shell cluster explosion
+      if (b.isMortar && b.mortarTargetY !== undefined && b.sprite.y >= b.mortarTargetY) {
+        this.audio.play('hit', 0.8);
+        const count = 6;
+        const step = (Math.PI * 2) / count;
+        for (let s = 0; s < count; s++) {
+          const a = s * step;
+          const sSprite = this.add.sprite(b.sprite.x, b.sprite.y, 'bullet_heavy').setScale(0.7);
+          sSprite.setTint(0xffaa00);
+          this.enemyBullets.push({
+            sprite: sSprite,
+            vx: Math.cos(a) * 220,
+            vy: Math.sin(a) * 220,
+            damage: 12,
+          });
+        }
+        b.sprite.destroy();
+        this.enemyBullets.splice(i, 1);
+        continue;
+      }
+
       b.sprite.x += b.vx * dt;
       b.sprite.y += b.vy * dt;
 
@@ -407,7 +519,7 @@ export class GameScene extends Phaser.Scene {
       // Continuous laser beam damage
       if (this.player.isFiringBeam) {
         if (Math.abs(enemy.x - this.player.x) < 55 && enemy.y < this.player.y) {
-          const killed = enemy.takeDamage(85 * dt);
+          const killed = enemy.takeDamage(85 * dt, this.player.x, this.player.y);
           if (killed) {
             this.handleEnemyKilled(enemy);
           }
@@ -418,11 +530,39 @@ export class GameScene extends Phaser.Scene {
       if (!enemy.isDead && this.checkOverlap(enemy, this.player, 45)) {
         if (this.player.hasShield) {
           // Shield instantly crushes enemy
-          const killed = enemy.takeDamage(120);
-          if (killed) this.handleEnemyKilled(enemy);
+          const killed = enemy.takeDamage(150, this.player.x, this.player.y);
+          if (killed) {
+            this.handleEnemyKilled(enemy);
+          }
         } else {
-          this.player.takeDamage(35);
-          enemy.takeDamage(40);
+          const isLowDanger =
+            enemy.enemyType === 'scout' ||
+            enemy.enemyType === 'interceptor' ||
+            enemy.enemyType === 'rear_interceptor' ||
+            enemy.enemyType === 'flanker_left' ||
+            enemy.enemyType === 'flanker_right';
+
+          if (isLowDanger) {
+            // Low danger plane crashes into player, costs more life than normal hit (~45 HP), and instantly explodes
+            enemy.isDead = true;
+            this.handleEnemyKilled(enemy);
+            const playerDied = this.player.takeDamage(45);
+            if (playerDied) {
+              this.handlePlayerDeath();
+            }
+          } else {
+            // Heavy units (Tank, Chopper, Turret, Mini-boss, Bosses): deals normal crash damage (~30 HP)
+            if (!this.player.isInvulnerable) {
+              const playerDied = this.player.takeDamage(30);
+              const killed = enemy.takeDamage(60, this.player.x, this.player.y);
+              if (killed) {
+                this.handleEnemyKilled(enemy);
+              }
+              if (playerDied) {
+                this.handlePlayerDeath();
+              }
+            }
+          }
         }
       }
 
@@ -682,6 +822,7 @@ export class GameScene extends Phaser.Scene {
       destroyPercent,
       rescuedPilots: this.survivorsRescued,
       totalPilots: this.totalSurvivorsInStage,
+      campaignComplete: this.currentStageId === 4,
       medals,
     });
   }

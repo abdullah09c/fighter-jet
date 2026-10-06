@@ -22,6 +22,7 @@ export interface SummaryData {
   destroyPercent: number;
   rescuedPilots: number;
   totalPilots: number;
+  campaignComplete?: boolean;
   medals: {
     destroy70Percent: boolean;
     destroy100Percent: boolean;
@@ -922,6 +923,60 @@ export class UIManager {
 
   public renderMissionSummary(data: SummaryData): void {
     this.activeScreen = 'summary';
+
+    if (data.campaignComplete && data.victory) {
+      this.container.innerHTML = `
+        <div class="pointer-events-auto w-full h-full flex items-center justify-center p-4 bg-skyforce-dark/95 backdrop-blur-md select-none">
+          <div class="bg-skyforce-panel border-2 border-skyforce-gold rounded-2xl p-6 max-w-sm w-full text-center space-y-4 shadow-2xl relative overflow-hidden">
+            <div class="absolute -top-12 -left-12 w-28 h-28 bg-skyforce-gold/20 rounded-full blur-2xl pointer-events-none"></div>
+            <div class="absolute -bottom-12 -right-12 w-28 h-28 bg-skyforce-accent/20 rounded-full blur-2xl pointer-events-none"></div>
+
+            <div class="inline-flex items-center gap-1.5 px-3 py-1 text-[10px] font-black tracking-widest text-skyforce-gold uppercase border border-skyforce-gold/50 rounded-full bg-skyforce-gold/10">
+              <span>🏆</span>
+              CAMPAIGN CONQUERED
+            </div>
+
+            <div>
+              <h2 class="text-2xl sm:text-3xl font-black tracking-wider text-white cyan-glow">
+                CITADEL DESTROYED
+              </h2>
+              <p class="text-xs text-skyforce-accent font-bold mt-1">COMMENDATION FROM SUPREME COMMAND</p>
+            </div>
+
+            <div class="bg-black/50 rounded-xl p-3 text-left border border-white/10 text-xs space-y-2">
+              <p class="text-gray-300 leading-relaxed text-[11px]">
+                Supreme salute to <strong class="text-white">Commander Abdullah</strong>! All 4 hostile airspace sectors have been liberated and the mothership core eradicated.
+              </p>
+              <div class="h-px bg-white/10"></div>
+              <div class="flex justify-between text-[11px]">
+                <span class="text-gray-400">Total Score:</span>
+                <span class="font-mono font-bold text-white">${data.score.toLocaleString()}</span>
+              </div>
+              <div class="flex justify-between text-[11px]">
+                <span class="text-gray-400">Stars Recovered:</span>
+                <span class="font-mono font-bold text-skyforce-gold">⭐ +${data.starsCollected}</span>
+              </div>
+            </div>
+
+            <div class="py-2">
+              <div class="text-xl sm:text-2xl font-black text-skyforce-gold gold-glow tracking-widest animate-pulse">
+                TO BE CONTINUED...
+              </div>
+              <p class="text-[10px] text-gray-400 mt-1">New campaign theatres and boss threats await in future updates.</p>
+            </div>
+
+            <button id="btn-campaign-menu" class="w-full py-3 rounded-xl bg-gradient-to-r from-skyforce-accent to-cyan-500 text-skyforce-dark font-black tracking-wider text-sm hover:brightness-110 active:scale-[0.98] shadow-lg shadow-skyforce-accent/30">
+              RETURN TO MAIN MENU
+            </button>
+          </div>
+        </div>
+      `;
+
+      this.container.querySelector('#btn-campaign-menu')?.addEventListener('click', () => {
+        this.renderMainMenu();
+      });
+      return;
+    }
 
     this.container.innerHTML = `
       <div class="pointer-events-auto w-full h-full flex items-center justify-center p-4 bg-skyforce-dark/95 backdrop-blur-md select-none">
