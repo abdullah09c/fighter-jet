@@ -89,7 +89,7 @@ export class IntroScene extends Phaser.Scene {
     logoContainer.add(badgeGlow);
 
     // Tagline: "CREATIVE STUDIOS" / "PRESENTS"
-    const topTag = this.add.text(0, -32, '◆  A B D U L L A H 0 9 C  ◆', {
+    const topTag = this.add.text(0, -32, '◆  BEING CREATIVE  ◆', {
       fontFamily: 'Orbitron, sans-serif',
       fontSize: '12px',
       color: '#00d2ff',

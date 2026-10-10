@@ -153,13 +153,26 @@ export class UIManager {
             </div>
           </button>
 
-          <!-- 3. SHOPS & HANGAR -->
+          <!-- 3. SELECT LEVEL -->
+          <button id="btn-menu-stages" class="group relative w-full p-2.5 rounded-xl bg-skyforce-panel/80 border border-white/15 hover:border-cyan-400 hover:bg-skyforce-accent/15 transition-all duration-200 text-left shadow-sm active:scale-[0.99]">
+            <div class="flex justify-between items-center">
+              <div>
+                <div class="flex items-center gap-2">
+                  <span class="text-sm text-cyan-400">🗺️</span>
+                  <span class="font-heading font-bold text-white text-sm tracking-wider">SELECT LEVEL</span>
+                </div>
+                <p class="text-[10px] text-gray-400 mt-0.2 ml-5">Browse and deploy to unlocked operations</p>
+              </div>
+            </div>
+          </button>
+
+          <!-- 4. SHOPS & UPGRADES -->
           <button id="btn-menu-shop" class="group relative w-full p-2.5 rounded-xl bg-skyforce-panel/80 border border-skyforce-gold/40 hover:border-skyforce-gold hover:bg-skyforce-gold/15 transition-all duration-200 text-left shadow-sm active:scale-[0.99]">
             <div class="flex justify-between items-center">
               <div>
                 <div class="flex items-center gap-2">
                   <span class="text-sm text-skyforce-gold">🛠️</span>
-                  <span class="font-heading font-bold text-white text-sm tracking-wider group-hover:text-amber-200">SHOPS & HANGAR</span>
+                  <span class="font-heading font-bold text-white text-sm tracking-wider group-hover:text-amber-200">SHOPS</span>
                   <span class="text-[9px] font-mono bg-skyforce-gold/20 text-skyforce-gold px-1.5 py-0.2 rounded font-bold">UPGRADE</span>
                 </div>
                 <p class="text-[10px] text-gray-400 mt-0.2 ml-5">Avionics, cannons, armor & special ordnance</p>
@@ -167,7 +180,7 @@ export class UIManager {
             </div>
           </button>
 
-          <!-- 4. HIGH SCORES -->
+          <!-- 5. HIGH SCORES -->
           <button id="btn-menu-scores" class="group relative w-full p-2.5 rounded-xl bg-skyforce-panel/80 border border-emerald-500/30 hover:border-emerald-400 hover:bg-emerald-500/15 transition-all duration-200 text-left shadow-sm active:scale-[0.99]">
             <div class="flex justify-between items-center">
               <div>
@@ -180,15 +193,16 @@ export class UIManager {
             </div>
           </button>
 
-          <!-- 5. SELECT MISSION -->
-          <button id="btn-menu-stages" class="group relative w-full p-2.5 rounded-xl bg-skyforce-panel/80 border border-white/15 hover:border-white/30 hover:bg-white/5 transition-all duration-200 text-left shadow-sm active:scale-[0.99]">
+          <!-- 6. HELPS -->
+          <button id="btn-menu-help" class="group relative w-full p-2.5 rounded-xl bg-skyforce-panel/80 border border-cyan-500/30 hover:border-cyan-400 hover:bg-cyan-500/15 transition-all duration-200 text-left shadow-sm active:scale-[0.99]">
             <div class="flex justify-between items-center">
               <div>
                 <div class="flex items-center gap-2">
-                  <span class="text-sm text-gray-300">🗺️</span>
-                  <span class="font-heading font-bold text-white text-sm tracking-wider">SELECT MISSION</span>
+                  <span class="text-sm text-cyan-400">❓</span>
+                  <span class="font-heading font-bold text-white text-sm tracking-wider group-hover:text-cyan-200">HELPS</span>
+                  <span class="text-[9px] font-mono bg-cyan-500/20 text-cyan-400 px-1.5 py-0.2 rounded font-bold">GUIDE</span>
                 </div>
-                <p class="text-[10px] text-gray-400 mt-0.2 ml-5">Browse and deploy to unlocked operations</p>
+                <p class="text-[10px] text-gray-400 mt-0.2 ml-5">Flight controls, tactical tips & manual</p>
               </div>
             </div>
           </button>
@@ -234,6 +248,12 @@ export class UIManager {
       this.showNewGameModal();
     });
 
+    // Bind Select Mission
+    this.container.querySelector('#btn-menu-stages')?.addEventListener('click', () => {
+      this.audio.play('powerup');
+      this.renderStageSelect();
+    });
+
     // Bind Shops & Hangar
     this.container.querySelector('#btn-menu-shop')?.addEventListener('click', () => {
       this.audio.play('powerup');
@@ -246,10 +266,10 @@ export class UIManager {
       this.renderHighScores();
     });
 
-    // Bind Select Mission
-    this.container.querySelector('#btn-menu-stages')?.addEventListener('click', () => {
+    // Bind Helps
+    this.container.querySelector('#btn-menu-help')?.addEventListener('click', () => {
       this.audio.play('powerup');
-      this.renderStageSelect();
+      this.showHelpModal();
     });
 
     // Audio toggles
@@ -324,8 +344,8 @@ export class UIManager {
         <!-- Footer -->
         <div class="w-full flex justify-end shrink-0 pt-1">
           <button id="btn-stages-hangar" class="py-2 px-4 rounded-lg bg-skyforce-panel tech-border text-skyforce-gold text-xs font-bold hover:bg-skyforce-gold/20 flex items-center gap-1.5">
-            🛠️ OPEN HANGAR SHOP
-          </button>
+            🛠️ OPEN SHOP
+          </button
         </div>
       </div>
     `;
@@ -492,6 +512,198 @@ export class UIManager {
     });
   }
 
+  // --- HELP & CONTROLS MODAL ---
+
+  private showHelpModal(): void {
+    const existing = document.getElementById('modal-help');
+    if (existing) existing.remove();
+
+    const modal = document.createElement('div');
+    modal.id = 'modal-help';
+    modal.className =
+      'pointer-events-auto absolute inset-0 bg-skyforce-dark/90 backdrop-blur-md flex items-center justify-center z-30 p-3 sm:p-4 select-none';
+    modal.innerHTML = `
+      <div class="bg-skyforce-panel tech-border rounded-2xl p-4 sm:p-5 max-w-sm sm:max-w-md w-full shadow-2xl flex flex-col max-h-[88vh] animate-fade-in">
+        
+        <!-- Header -->
+        <div class="flex justify-between items-center border-b border-white/10 pb-2.5 shrink-0">
+          <div class="flex items-center gap-2">
+            <span class="text-xl text-skyforce-accent">📖</span>
+            <div>
+              <h2 class="text-base sm:text-lg font-black text-white cyan-glow tracking-wider leading-none">FLIGHT MANUAL</h2>
+              <span class="text-[10px] text-skyforce-accent font-mono uppercase tracking-widest">TACTICAL INTEL & CONTROLS</span>
+            </div>
+          </div>
+          <button id="btn-close-help-icon" class="w-7 h-7 rounded-lg bg-skyforce-dark border border-white/15 text-gray-300 hover:text-white hover:border-cyan-400 flex items-center justify-center text-sm font-bold transition-all">
+            ✕
+          </button>
+        </div>
+
+        <!-- Tab Switcher -->
+        <div class="flex gap-2 my-2.5 bg-black/40 p-1 rounded-xl border border-white/10 shrink-0">
+          <button id="tab-btn-controls" class="flex-1 py-1.5 rounded-lg text-xs font-bold transition-all bg-skyforce-accent text-skyforce-dark shadow-sm">
+            🎮 CONTROLS
+          </button>
+          <button id="tab-btn-tips" class="flex-1 py-1.5 rounded-lg text-xs font-bold transition-all text-gray-300 hover:text-white">
+            💡 COMBAT TIPS
+          </button>
+        </div>
+
+        <!-- Scrollable Body -->
+        <div class="flex-1 overflow-y-auto space-y-3 pr-1 text-xs min-h-0 text-gray-300">
+          
+          <!-- TAB 1: CONTROLS CONTENT -->
+          <div id="tab-content-controls" class="space-y-3">
+            <!-- Desktop Controls Card -->
+            <div class="bg-skyforce-dark/70 rounded-xl p-3 border border-skyforce-accent/30 space-y-2">
+              <div class="flex items-center gap-1.5 text-skyforce-accent font-bold text-xs uppercase tracking-wider">
+                <span>🖥️</span> DESKTOP KEYBOARD & MOUSE
+              </div>
+              <div class="space-y-1.5 text-[11px]">
+                <div class="flex justify-between items-center py-0.5 border-b border-white/5">
+                  <span class="text-gray-400">Flight Navigation:</span>
+                  <span class="font-mono font-bold text-white bg-white/10 px-1.5 py-0.5 rounded">W A S D / ARROWS</span>
+                </div>
+                <div class="flex justify-between items-center py-0.5 border-b border-white/5">
+                  <span class="text-gray-400">Auto-Fire Toggle:</span>
+                  <span class="font-mono font-bold text-emerald-400 bg-emerald-500/10 px-1.5 py-0.5 rounded border border-emerald-500/30">SPACEBAR</span>
+                </div>
+                <div class="flex justify-between items-center py-0.5 border-b border-white/5">
+                  <span class="text-gray-400">Manual Cannon:</span>
+                  <span class="font-mono font-bold text-white bg-white/10 px-1.5 py-0.5 rounded">HOLD LEFT CLICK</span>
+                </div>
+                <div class="flex justify-between items-center py-0.5 border-b border-white/5">
+                  <span class="text-gray-400">Laser Beam Ability:</span>
+                  <span class="font-mono font-bold text-cyan-300 bg-cyan-500/10 px-1.5 py-0.5 rounded border border-cyan-500/30">KEY [1]</span>
+                </div>
+                <div class="flex justify-between items-center py-0.5 border-b border-white/5">
+                  <span class="text-gray-400">Energy Shield Ability:</span>
+                  <span class="font-mono font-bold text-skyforce-gold bg-skyforce-gold/10 px-1.5 py-0.5 rounded border border-skyforce-gold/30">KEY [2]</span>
+                </div>
+                <div class="flex justify-between items-center py-0.5 border-b border-white/5">
+                  <span class="text-gray-400">Mega Bomb Ordnance:</span>
+                  <span class="font-mono font-bold text-rose-400 bg-rose-500/10 px-1.5 py-0.5 rounded border border-rose-500/30">KEY [3]</span>
+                </div>
+                <div class="flex justify-between items-center py-0.5">
+                  <span class="text-gray-400">Tactical Pause:</span>
+                  <span class="font-mono font-bold text-white bg-white/10 px-1.5 py-0.5 rounded">P / ESC</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- Mobile Controls Card -->
+            <div class="bg-skyforce-dark/70 rounded-xl p-3 border border-skyforce-gold/30 space-y-2">
+              <div class="flex items-center gap-1.5 text-skyforce-gold font-bold text-xs uppercase tracking-wider">
+                <span>📱</span> SMARTPHONE TOUCH CONTROLS
+              </div>
+              <div class="space-y-1.5 text-[11px]">
+                <div class="flex justify-between items-center py-0.5 border-b border-white/5">
+                  <span class="text-gray-400">Touch & Drag:</span>
+                  <span class="text-white text-right">Smooth drag anywhere with finger offset</span>
+                </div>
+                <div class="flex justify-between items-center py-0.5 border-b border-white/5">
+                  <span class="text-gray-400">Auto-Fire HUD:</span>
+                  <span class="text-emerald-400 font-bold">Tap "⚡ AUTO" button</span>
+                </div>
+                <div class="flex justify-between items-center py-0.5">
+                  <span class="text-gray-400">Thumb Hotbar:</span>
+                  <span class="text-white text-right">Instant tap bottom icons for Laser, Shield & Bomb</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- TAB 2: COMBAT TIPS CONTENT (Hidden by default) -->
+          <div id="tab-content-tips" class="space-y-2.5 hidden">
+            <!-- Ambush Warning -->
+            <div class="bg-black/40 rounded-xl p-2.5 border border-rose-500/30">
+              <div class="flex items-center gap-1.5 text-rose-400 font-bold text-xs mb-1">
+                <span>⚠️</span> SURPRISE AMBUSHES
+              </div>
+              <p class="text-[11px] text-gray-300 leading-snug">
+                Look for flashing red border signals and audio alarms! Rear interceptors streak from the screen bottom, and side flank pincers attack horizontally with crossfire.
+              </p>
+            </div>
+
+            <!-- Plane Collision -->
+            <div class="bg-black/40 rounded-xl p-2.5 border border-amber-500/30">
+              <div class="flex items-center gap-1.5 text-amber-300 font-bold text-xs mb-1">
+                <span>💥</span> MID-AIR PLANE COLLISIONS
+              </div>
+              <p class="text-[11px] text-gray-300 leading-snug">
+                Colliding with low-danger aircraft (Scouts, Interceptors, Flankers) causes heavy damage (45 HP) and obliterates the enemy immediately. Heavy armored tanks and bosses do not explode on ramming!
+              </p>
+            </div>
+
+            <!-- Pilot Rescue -->
+            <div class="bg-black/40 rounded-xl p-2.5 border border-emerald-500/30">
+              <div class="flex items-center gap-1.5 text-emerald-300 font-bold text-xs mb-1">
+                <span>🆘</span> RESCUE STRANDED PILOTS
+              </div>
+              <p class="text-[11px] text-gray-300 leading-snug">
+                Fly directly over parachuting pilots to rescue them for <strong class="text-skyforce-gold">+50 Bonus Stars</strong> and +1,500 points each. Saving all pilots awards the coveted Rescue Medal.
+              </p>
+            </div>
+
+            <!-- Boss Tactics -->
+            <div class="bg-black/40 rounded-xl p-2.5 border border-skyforce-accent/30">
+              <div class="flex items-center gap-1.5 text-skyforce-accent font-bold text-xs mb-1">
+                <span>🛡️</span> DEFLECTIVE SHIELDS & BOSS WEAKPOINTS
+              </div>
+              <p class="text-[11px] text-gray-300 leading-snug">
+                The Stage 2 Fortress Tank deflects frontal cannon shots while its shield arc glows. Destroy the wing turrets on the Stage 4 Mothership Citadel to disable its side firepower!
+              </p>
+            </div>
+          </div>
+
+        </div>
+
+        <!-- Footer Action -->
+        <div class="pt-2 shrink-0 border-t border-white/10 mt-1">
+          <button id="btn-close-help" class="w-full py-2.5 rounded-xl bg-skyforce-accent text-skyforce-dark font-black tracking-wider text-xs hover:brightness-110 active:scale-[0.99] shadow-md shadow-skyforce-accent/20">
+            CLOSE MANUAL
+          </button>
+        </div>
+
+      </div>
+    `;
+
+    this.container.appendChild(modal);
+
+    const tabControlsBtn = modal.querySelector('#tab-btn-controls');
+    const tabTipsBtn = modal.querySelector('#tab-btn-tips');
+    const contentControls = modal.querySelector('#tab-content-controls');
+    const contentTips = modal.querySelector('#tab-content-tips');
+
+    tabControlsBtn?.addEventListener('click', () => {
+      this.audio.play('powerup', 1.2);
+      tabControlsBtn.className =
+        'flex-1 py-1.5 rounded-lg text-xs font-bold transition-all bg-skyforce-accent text-skyforce-dark shadow-sm';
+      tabTipsBtn!.className =
+        'flex-1 py-1.5 rounded-lg text-xs font-bold transition-all text-gray-300 hover:text-white';
+      contentControls?.classList.remove('hidden');
+      contentTips?.classList.add('hidden');
+    });
+
+    tabTipsBtn?.addEventListener('click', () => {
+      this.audio.play('powerup', 1.2);
+      tabTipsBtn.className =
+        'flex-1 py-1.5 rounded-lg text-xs font-bold transition-all bg-skyforce-accent text-skyforce-dark shadow-sm';
+      tabControlsBtn!.className =
+        'flex-1 py-1.5 rounded-lg text-xs font-bold transition-all text-gray-300 hover:text-white';
+      contentTips?.classList.remove('hidden');
+      contentControls?.classList.add('hidden');
+    });
+
+    const closeModal = () => {
+      this.audio.play('hit', 1.1);
+      modal.remove();
+    };
+
+    modal.querySelector('#btn-close-help-icon')?.addEventListener('click', closeModal);
+    modal.querySelector('#btn-close-help')?.addEventListener('click', closeModal);
+  }
+
   // --- 5. SHOPS & HANGAR SCREEN ---
 
   public renderHangar(): void {
@@ -521,7 +733,7 @@ export class UIManager {
             <button id="btn-back-menu" class="px-2.5 py-1 rounded bg-skyforce-panel tech-border text-xs text-skyforce-accent font-bold hover:bg-skyforce-accent/20">
               ← BACK
             </button>
-            <h2 class="text-base sm:text-lg font-black text-white cyan-glow tracking-wider">HANGAR SHOPS</h2>
+            <h2 class="text-base sm:text-lg font-black text-white cyan-glow tracking-wider">UPGRADES</h2>
           </div>
           <div class="flex items-center gap-1.5 bg-skyforce-panel tech-border px-3 py-1 rounded-lg">
             <span class="text-skyforce-gold font-bold text-sm">⭐ ${state.stars}</span>
@@ -1044,7 +1256,7 @@ export class UIManager {
               RETRY
             </button>
             <button id="btn-summary-hangar" class="flex-1 py-2 rounded bg-skyforce-accent text-skyforce-dark text-xs font-bold hover:brightness-110">
-              HANGAR
+              UPGRADES
             </button>
             <button id="btn-summary-menu" class="py-2 px-3 rounded bg-skyforce-panel border border-white/20 text-gray-300 text-xs font-bold hover:text-white">
               MENU
